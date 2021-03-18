@@ -1,0 +1,275 @@
+openapi: 3.0.3
+info:
+  title: URL shortener API
+  version: 1.0.0
+  description: Simple API for URL shortener project that is created as labs for Modern Methods and Technologies of Software Development universisty course.
+  contact:
+    url: https://github.com/IP-86-Development-Tech-And-Methods-2021/specification-url-shortener
+servers:
+  - url: http://localhost:8080
+    description: URL shortener running locally
+externalDocs:
+  description: GitHub project for the OpenAPI specification of URL shortener API
+  url: https://github.com/IP-86-Development-Tech-And-Methods-2021/specification-url-shortener
+paths:
+  /users/signup:
+    post:
+      tags:
+        - users
+      operationId: signup
+      requestBody:
+        description:
+          User sign up. "Success" response means that user was created
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/signUpRequest'
+      responses:
+        '201':
+          description: New user was created
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/signUpResponseError'
+
+  /login:
+    post:
+      tags:
+        - users
+      operationId: signin
+      requestBody:
+        description:
+          User sign-in. "Success" response contains bearer token
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/signInRequest'
+      responses:
+        '200':
+          description: Response with bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/signInResponseOk'
+        '400':
+          description: Malformed request/required params are missing
+        '404':
+          description: User with provided credentials not found
+
+  /urls/shorten:
+    post:
+      tags:
+        - urls
+      security:
+        - bearerAuth: [ ]
+      operationId: urlsShorten
+      summary: Url shortening operation. "Success" response contains shorten version of given url
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/urlsShortenRequest'
+      responses:
+        '201':
+          description: Url was successfully shortened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/urlsShortenResponseOk'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/urlsShortenResponseErr'
+        '401':
+          description: User is not authorized
+
+  /r/{alias}:
+    get:
+      summary: Redirect to url
+      parameters:
+        - in: path
+          name: alias
+          schema:
+            type: string
+          required: true
+          description: identifier of shortened url
+      responses:
+        '301':
+          description: User successfully redirected
+          headers:
+            Location:
+              schema:
+                type: string
+              description: url
+              required: true
+        '404':
+          description: no url corresponds to given alias
+
+  /urls:
+    get:
+      tags:
+        - urls
+      security:
+        - bearerAuth: [ ]
+      summary: List of urls created by user
+      responses:
+        '200':
+          description: List of urls created by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/urlsListResponseOk'
+        '401':
+          description: User is not authorized
+
+  /urls/{alias}:
+    delete:
+      tags:
+        - urls
+      security:
+        - bearerAuth: [ ]
+      summary: Delete shortened url
+      parameters:
+        - in: path
+          name: alias
+          schema:
+            type: string
+          required: true
+          description: Identifier of shortened url
+      responses:
+        '204':
+          description: Url deleted
+        '401':
+          description: User is not authorized
+        '404':
+           description: Alias was not found among created by the user
+
+
+components:
+  schemas:
+    signUpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          description: email
+          example: "test@example.com"
+        password:
+          type: string
+          description: password
+          example: "very-strong-password"
+      required:
+        - email
+        - password
+    signUpResponseError:
+      type: object
+      properties:
+        reason_code:
+          type: integer
+          enum: [0, 2]
+          description: >
+            * 0 - Malformed request
+            * 2 - Email is already used
+        reason_text:
+          type: integer
+          description: human-interpretable error reason
+          example: "Cannot parse json"
+
+    signInRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: email
+          example: "test@example.com"
+        password:
+          type: string
+          description: password
+          example: "very-strong-password"
+      required:
+        - email
+        - password
+    signInResponseOk:
+      type: object
+      properties:
+        token:
+          type: string
+          description: bearer token
+          example: "31e6dcae-e0ab-4808-b4d7-38c6c4768c66"
+
+    urlsShortenRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: url to shorten
+          example: "https://www.google.com.ua/"
+        alias:
+          type: string
+          description: desired identifier
+          example: "abcd"
+      required:
+        - url
+    urlsShortenResponseOk:
+      type: object
+      properties:
+        shortened_url:
+          type: string
+          description: shortened url
+          example: "http://localhost:8080/r/abcdefghijk"
+    urlsShortenResponseErr:
+      type: object
+      properties:
+        reason_code:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: >
+            * 0 - Malformed request
+            * 1 - Provided url is not valid http or https url (ftp for example)
+            * 2 - Desired alias is already taken
+            * 3 - Desired alias is not alphanumeric string
+        reason_text:
+          type: integer
+          description: human-interpretable error reason
+          example: "Cannot parse json"
+
+    urlsListResponseOk:
+      type: object
+      properties:
+        urls:
+          type: array
+          description: array of url data
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: url
+                example: "https://www.google.com.ua/"
+              alias:
+                type: string
+                description: identifier
+                example: "abcd"
+              shortened_url:
+                type: string
+                description: shortened url
+                example: "http://localhost:8080/r/abcd"
+
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+tags:
+  - name: users
+    description: User-related part of the API
+  - name: urls
+    description: Url shortening part of the API
